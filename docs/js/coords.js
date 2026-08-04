@@ -108,9 +108,8 @@ export function coordToSpoken(ogsCoord, boardSize = 9) {
 
   const colChar = gtp[0];
   const rowNum = parseInt(gtp.slice(1), 10);
-  const rowWord = ROW_WORDS[rowNum] || String(rowNum);
 
-  return `${colChar} ${rowWord}`;
+  return `${colChar}${rowNum}`;
 }
 
 /**
