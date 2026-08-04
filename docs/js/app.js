@@ -558,12 +558,6 @@ function showGameError(message) {
   console.error(message);
 }
 
-function showLoginError(message) {
-  const el = document.getElementById('login-error');
-  if (el) el.textContent = message;
-  console.error('Login error:', message);
-}
-
 // ── Phase 4: Live game session ──────────────────────────────────────────
 
 /**
@@ -764,4 +758,9 @@ function handleGameOver(data) {
   showView('result');
 }
 
-document.addEventListener('DOMContentLoaded', init);
+// Module scripts are deferred — DOMContentLoaded may have already fired.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
