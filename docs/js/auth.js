@@ -73,12 +73,17 @@ export async function login() {
 
   const verifier  = randomBase64url(32);
   const challenge = await sha256Base64url(verifier);
-  const state     = randomBase64url(16);
+  const nonce     = randomBase64url(8);
 
-  sessionStorage.setItem('pkce_verifier', verifier);  // kept for same-origin fallback
-  sessionStorage.setItem('pkce_state',    state);
+  // Encode the verifier into the state param so it survives Custom Tab / cross-process redirects.
+  // Format: "<nonce>.<base64url-verifier>"
+  // We still persist to localStorage as a belt-and-suspenders fallback.
+  const state = `${nonce}.${verifier}`;
+
   localStorage.setItem('pkce_verifier', verifier);
   localStorage.setItem('pkce_state',    state);
+  sessionStorage.setItem('pkce_verifier', verifier);
+  sessionStorage.setItem('pkce_state',    state);
 
   const params = new URLSearchParams({
     response_type:         'code',
@@ -110,16 +115,23 @@ export async function handleCallback() {
   // Clean the URL immediately so a reload doesn't re-attempt the exchange
   window.history.replaceState({}, document.title, window.location.pathname);
 
-  // Read from localStorage first (survives cross-origin redirect on GitHub Pages),
-  // fall back to sessionStorage for same-origin flows.
-  const verifier   = localStorage.getItem('pkce_verifier') ?? sessionStorage.getItem('pkce_verifier');
-  const savedState = localStorage.getItem('pkce_state')    ?? sessionStorage.getItem('pkce_state');
+  // Primary: extract verifier from the state param itself (survives Custom Tabs / new processes)
+  // Format: "<nonce>.<verifier>"  — everything after the first dot is the verifier
+  let verifier = null;
+  if (retState && retState.includes('.')) {
+    verifier = retState.slice(retState.indexOf('.') + 1);
+  }
+
+  // Fallback: read from storage (same-origin desktop flows)
+  if (!verifier) {
+    verifier = localStorage.getItem('pkce_verifier') ?? sessionStorage.getItem('pkce_verifier');
+  }
   localStorage.removeItem('pkce_verifier');   sessionStorage.removeItem('pkce_verifier');
   localStorage.removeItem('pkce_state');      sessionStorage.removeItem('pkce_state');
 
-  if (retState !== savedState) {
-    console.error('auth.js: OAuth state mismatch — possible CSRF');
-    return null;
+  if (!verifier) {
+    console.error('auth.js: PKCE verifier missing — cannot complete login');
+    return { error: 'Login failed: session data was lost. Please try again.' };
   }
 
   const body = new URLSearchParams({
@@ -137,8 +149,9 @@ export async function handleCallback() {
   });
 
   if (!resp.ok) {
-    console.error('auth.js: token exchange failed', resp.status, await resp.text());
-    return null;
+    const detail = await resp.text().catch(() => '');
+    console.error('auth.js: token exchange failed', resp.status, detail);
+    return { error: `Login failed (${resp.status}). Please try again.` };
   }
 
   const data = await resp.json();

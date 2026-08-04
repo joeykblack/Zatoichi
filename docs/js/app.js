@@ -437,9 +437,14 @@ async function init() {
   // ── Phase 2: OAuth ──────────────────────────────────────────────────────
 
   // 1. Handle redirect back from OGS with ?code=
-  const callbackUser = await handleCallback();
-  if (callbackUser) {
-    onLoggedIn(callbackUser);
+  const callbackResult = await handleCallback();
+  if (callbackResult) {
+    if (callbackResult.error) {
+      showView('login');
+      showLoginError(callbackResult.error);
+      return;
+    }
+    onLoggedIn(callbackResult);
     return;
   }
 
@@ -551,6 +556,12 @@ function showGameError(message) {
   const el = document.getElementById('game-info-text');
   if (el) el.textContent = message;
   console.error(message);
+}
+
+function showLoginError(message) {
+  const el = document.getElementById('login-error');
+  if (el) el.textContent = message;
+  console.error('Login error:', message);
 }
 
 // ── Phase 4: Live game session ──────────────────────────────────────────
