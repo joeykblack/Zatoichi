@@ -1,16 +1,17 @@
 /**
  * app.js — Top-level application init, state management, and view switching.
  *
- * Phase 1: scaffold only.
- *   - Registers service worker
- *   - Checks TTS / STT support and reports in UI
- *   - Manages view switching
- *   - Holds the central AppState object
- *   - Wires up stub button handlers (login, logout, start game, speak, pass, resign)
+ * Phase 2: OGS OAuth authentication.
+ *   - Handles OAuth callback on page load
+ *   - Login button triggers PKCE redirect
+ *   - Token validated on every load; refreshed automatically
+ *   - Username announced and shown in lobby after login
  */
 
 import { speak, hasTTS, hasSTT, listenForMove, stopListening } from './voice.js';
 import { coordToSpoken, parseSpokenMove } from './coords.js';
+import { login, logout, handleCallback, validateToken, getUser } from './auth.js';
+import { OGS_CLIENT_ID } from './config.js';
 
 // ── App State ────────────────────────────────────────────────────────────────
 
@@ -84,30 +85,15 @@ function registerServiceWorker() {
 function checkVoiceCapabilities() {
   const ttsStatus = document.getElementById('tts-status-text');
   const sttStatus = document.getElementById('stt-status-text');
-  const isFirefox  = navigator.userAgent.includes('Firefox');
 
   if (ttsStatus) {
-    if (hasTTS()) {
-      ttsStatus.textContent = isFirefox
-        ? 'available (system voice — may sound robotic)'
-        : 'available ✓';
-      ttsStatus.className = isFirefox ? 'warn' : 'ok';
-    } else {
-      ttsStatus.textContent = 'not available';
-      ttsStatus.className = 'warn';
-    }
+    ttsStatus.textContent = hasTTS() ? 'available ✓' : 'not available';
+    ttsStatus.className   = hasTTS() ? 'ok' : 'warn';
   }
 
   if (sttStatus) {
-    if (hasSTT()) {
-      sttStatus.textContent = 'available ✓';
-      sttStatus.className = 'ok';
-    } else {
-      sttStatus.textContent = isFirefox
-        ? 'not supported in Firefox — use Chrome or Chromium'
-        : 'not available';
-      sttStatus.className = 'warn';
-    }
+    sttStatus.textContent = hasSTT() ? 'available ✓' : 'not available — use Chrome';
+    sttStatus.className   = hasSTT() ? 'ok' : 'warn';
   }
 }
 
@@ -249,18 +235,32 @@ function handleResign() {
 
 function wireButtons() {
   // Login
-  document.getElementById('btn-login')?.addEventListener('click', () => {
-    // Phase 2 will call auth.login()
-    speak('Login is not yet implemented. Coming in phase two.');
-    console.log('btn-login clicked (stub)');
+  document.getElementById('btn-login')?.addEventListener('click', async () => {
+    if (OGS_CLIENT_ID === 'YOUR_CLIENT_ID_HERE') {
+      speak('O G S client I D is not configured. Please edit docs slash js slash config dot js.');
+      showLoginError('OGS Client ID not set. Edit docs/js/config.js — see instructions inside.');
+      return;
+    }
+    const btn = document.getElementById('btn-login');
+    btn.disabled = true;
+    btn.textContent = 'Redirecting to OGS…';
+    speak('Redirecting to O G S to log in.');
+    try {
+      await login();
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = 'Log in with OGS';
+      showLoginError(e.message);
+      speak('Login failed. ' + e.message);
+    }
   });
 
   // Logout
   document.getElementById('btn-logout')?.addEventListener('click', () => {
+    logout();
     state.auth = null;
     speak('Logged out.');
     showView('login');
-    console.log('btn-logout clicked (stub)');
   });
 
   // Start game
@@ -289,35 +289,64 @@ function wireButtons() {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
-function init() {
+async function init() {
   registerServiceWorker();
   checkVoiceCapabilities();
   wireButtons();
 
-  // Show browser compatibility warning if STT is not available
   if (!hasSTT()) {
-    const isFirefox = navigator.userAgent.includes('Firefox');
-    showCompatWarning(
-      isFirefox
-        ? 'Firefox does not support speech recognition on Linux. Please use Chrome or Chromium for the full voice experience.'
-        : 'Your browser does not support speech recognition. Please use Chrome or Chromium.'
-    );
+    showCompatWarning('Speech recognition is not available. Please use Chrome or Chromium.');
   }
 
-  // Determine initial view from persisted auth token (Phase 2 will handle this properly)
-  const token = localStorage.getItem('zatoichi_token');
-  if (token) {
-    showView('lobby');
-  } else {
-    showView('login');
+  // Announce app loading
+  setTimeout(() => speak('Zatoichi. Voice Go for O G S.'), 800);
+
+  // ── Phase 2: OAuth ──────────────────────────────────────────────────────
+
+  // 1. Handle redirect back from OGS with ?code=
+  const callbackUser = await handleCallback();
+  if (callbackUser) {
+    onLoggedIn(callbackUser);
+    return;
   }
 
-  // Announce app ready (small delay to let TTS engine load)
-  setTimeout(() => {
-    speak('Zatoichi. Voice Go for O G S.');
-  }, 800);
+  // 2. Check for an existing valid token
+  const existingUser = await validateToken();
+  if (existingUser) {
+    onLoggedIn(existingUser);
+    return;
+  }
 
+  // 3. No valid auth — show login
+  showView('login');
   console.log('Zatoichi app initialised.');
+}
+
+/**
+ * Called after a successful login or token validation.
+ * Populates state, updates UI, and announces the user's name.
+ */
+function onLoggedIn(user) {
+  state.auth = { accessToken: getUser()?.accessToken ?? '', userId: user.id, username: user.username };
+
+  // Populate lobby
+  const usernameEl = document.getElementById('lobby-username');
+  if (usernameEl) usernameEl.textContent = user.username;
+
+  showView('lobby');
+  speak(`Welcome, ${user.username}. Ready to play.`);
+  console.log('Logged in as', user.username);
+}
+
+/**
+ * Show an error message on the login view.
+ */
+function showLoginError(message) {
+  let el = document.getElementById('login-error');
+  if (el) {
+    el.textContent = message;
+    el.hidden = false;
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

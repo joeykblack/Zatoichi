@@ -407,6 +407,15 @@
     <!-- Scripts (module, so deferred by default) -->
     <script type="module" src="./js/coords.js"></script>
     <script type="module" src="./js/voice.js"></script>
+    <script type="module" src="./js/config.js"></script>
     <script type="module" src="./js/app.js"></script>
+    <script type="module">
+      // Show the configured redirect URI in the setup instructions
+      import { REDIRECT_URI } from './js/config.js';
+      document.addEventListener('DOMContentLoaded', () => {
+        const el = document.getElementById('redirect-uri-display');
+        if (el) el.textContent = REDIRECT_URI;
+      });
+    </script>
   </body>
 </html>
