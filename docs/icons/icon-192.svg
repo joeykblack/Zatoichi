@@ -1,0 +1,9 @@
+<!-- Zatoichi icon: black Go stone with a white dot (blind eye / zen) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <circle cx="96" cy="96" r="84" fill="#1a1a2e" stroke="#60a5fa" stroke-width="6"/>
+  <!-- Stone highlight -->
+  <ellipse cx="78" cy="72" rx="22" ry="14" fill="rgba(255,255,255,0.12)"/>
+  <!-- White dot — blind eye -->
+  <circle cx="96" cy="96" r="20" fill="none" stroke="#e5e7eb" stroke-width="5"/>
+  <circle cx="96" cy="96" r="6" fill="#e5e7eb"/>
+</svg>

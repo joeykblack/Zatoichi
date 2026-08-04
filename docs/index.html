@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b1020" />
+    <title>Zatoichi — Voice Go</title>
+    <link rel="manifest" href="./manifest.json" />
+    <style>
+      :root {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        font-size: 18px;
+        --bg: #0b1020;
+        --surface: #151d35;
+        --border: #2a3a5c;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --accent: #60a5fa;
+        --accent-dark: #1d4ed8;
+        --danger: #f87171;
+        --success: #86efac;
+        --btn-h: 3.5rem;
+        --btn-h-lg: 5rem;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        min-height: 100dvh;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      /* ── Layout ─────────────────────────────────────────── */
+      .app-header {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 60px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 1rem;
+        gap: 0.75rem;
+        z-index: 10;
+      }
+
+      .app-header h1 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      .app-header .subtitle {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      main {
+        padding: 76px 1rem 1rem;
+        max-width: 640px;
+        margin: 0 auto;
+      }
+
+      /* ── Views ──────────────────────────────────────────── */
+      .view {
+        display: none;
+      }
+      .view.active {
+        display: block;
+      }
+
+      .view h2 {
+        font-size: 1.5rem;
+        margin-top: 0;
+        color: var(--accent);
+      }
+
+      /* ── Buttons ────────────────────────────────────────── */
+      button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        width: 100%;
+        height: var(--btn-h);
+        padding: 0 1.5rem;
+        margin-bottom: 0.75rem;
+        background: var(--accent-dark);
+        color: #fff;
+        border: none;
+        border-radius: 0.5rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+      button:hover, button:focus-visible {
+        background: var(--accent);
+        color: #000;
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+      }
+      button:active {
+        opacity: 0.8;
+      }
+      button.btn-danger {
+        background: #7f1d1d;
+        color: var(--danger);
+      }
+      button.btn-danger:hover, button.btn-danger:focus-visible {
+        background: var(--danger);
+        color: #000;
+        outline-color: var(--danger);
+      }
+      button.btn-lg {
+        height: var(--btn-h-lg);
+        font-size: 1.4rem;
+        border-radius: 0.75rem;
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* ── Form elements ──────────────────────────────────── */
+      label {
+        display: block;
+        font-size: 0.9rem;
+        color: var(--muted);
+        margin-bottom: 0.25rem;
+        margin-top: 1rem;
+      }
+      select {
+        display: block;
+        width: 100%;
+        height: var(--btn-h);
+        padding: 0 1rem;
+        background: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        margin-bottom: 0.75rem;
+        cursor: pointer;
+      }
+      select:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      /* ── Status / info ──────────────────────────────────── */
+      .status-bar {
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-bottom: 1rem;
+        padding: 0.5rem 0.75rem;
+        background: var(--surface);
+        border-radius: 0.4rem;
+        border: 1px solid var(--border);
+      }
+      .status-bar .ok   { color: var(--success); }
+      .status-bar .warn { color: var(--danger); }
+
+      /* ── Move history ────────────────────────────────────── */
+      #move-history {
+        list-style: none;
+        margin: 0 0 1rem;
+        padding: 0;
+        max-height: 220px;
+        overflow-y: auto;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+      }
+      #move-history li {
+        padding: 0.4rem 0.75rem;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.95rem;
+      }
+      #move-history li:last-child { border-bottom: none; }
+      #move-history li.you  { color: var(--accent); }
+      #move-history li.opp  { color: var(--success); }
+      #move-history li.info { color: var(--muted); font-style: italic; }
+
+      /* ── Voice indicator ────────────────────────────────── */
+      #listen-status {
+        text-align: center;
+        font-size: 0.95rem;
+        color: var(--muted);
+        min-height: 1.5rem;
+        margin-bottom: 0.5rem;
+      }
+      #listen-status.listening {
+        color: var(--danger);
+        animation: pulse 1s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.4; }
+      }
+
+      /* ── Result view ────────────────────────────────────── */
+      #result-summary {
+        font-size: 1.3rem;
+        font-weight: 600;
+        text-align: center;
+        padding: 1.5rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        margin-bottom: 1.5rem;
+      }
+
+      /* ── Divider ────────────────────────────────────────── */
+      hr {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 1.25rem 0;
+      }
+
+      /* ── Skip link ──────────────────────────────────────── */
+      .skip-link {
+        position: absolute;
+        top: -999px;
+        left: 0;
+        background: var(--accent);
+        color: #000;
+        padding: 0.5rem 1rem;
+        z-index: 100;
+        font-weight: 700;
+        border-radius: 0 0 0.5rem 0;
+      }
+      .skip-link:focus { top: 0; }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+
+    <header class="app-header" role="banner">
+      <img src="./icons/icon-192.svg" alt="" width="32" height="32" aria-hidden="true" />
+      <h1>Zatoichi</h1>
+      <span class="subtitle" aria-hidden="true">Voice Go</span>
+    </header>
+
+    <!-- Browser compatibility warning (hidden until JS decides to show it) -->
+    <div
+      id="compat-warning"
+      role="alert"
+      aria-live="assertive"
+      hidden
+      style="
+        position: fixed;
+        top: 60px; left: 0; right: 0;
+        background: #7f1d1d;
+        color: #fecaca;
+        font-size: 0.9rem;
+        padding: 0.6rem 1rem;
+        text-align: center;
+        z-index: 20;
+        border-bottom: 1px solid #ef4444;
+      "
+    ></div>
+
+    <main id="main-content" role="main">
+
+      <!-- ══════════════════════════════════════════════════
+           VIEW: Login
+      ═══════════════════════════════════════════════════ -->
+      <section
+        id="view-login"
+        class="view active"
+        role="region"
+        aria-label="Login"
+      >
+        <h2>Welcome to Zatoichi</h2>
+        <p>Play Go on OGS using only your voice. Moves are announced by the app and accepted by speaking your coordinate aloud.</p>
+
+        <div class="status-bar" id="login-sw-status" aria-live="polite">
+          Service worker: <span id="sw-status-text">checking…</span>
+        </div>
+        <div class="status-bar" id="login-voice-status" aria-live="polite">
+          Speech: <span id="tts-status-text">checking…</span> &nbsp;|&nbsp; Recognition: <span id="stt-status-text">checking…</span>
+        </div>
+
+        <button id="btn-login" aria-describedby="login-hint">
+          Log in with OGS
+        </button>
+        <p id="login-hint" style="font-size:0.85rem; color:var(--muted);">
+          You will be redirected to online-go.com to authorise Zatoichi.
+        </p>
+      </section>
+
+      <!-- ══════════════════════════════════════════════════
+           VIEW: Lobby
+      ═══════════════════════════════════════════════════ -->
+      <section
+        id="view-lobby"
+        class="view"
+        role="region"
+        aria-label="Lobby — start a new game"
+      >
+        <h2>New Game</h2>
+
+        <div class="status-bar" aria-live="polite">
+          Logged in as: <strong id="lobby-username">—</strong>
+        </div>
+
+        <label for="bot-select">Opponent (bot)</label>
+        <select id="bot-select" aria-label="Select opponent bot">
+          <option value="">Loading bots…</option>
+        </select>
+
+        <label for="size-select">Board size</label>
+        <select id="size-select" aria-label="Select board size">
+          <option value="9" selected>9 × 9</option>
+          <option value="13">13 × 13</option>
+          <option value="19">19 × 19</option>
+        </select>
+
+        <button id="btn-start-game" disabled>
+          Start Game
+        </button>
+
+        <hr />
+
+        <button id="btn-logout" class="btn-danger">
+          Log out
+        </button>
+      </section>
+
+      <!-- ══════════════════════════════════════════════════
+           VIEW: Game
+      ═══════════════════════════════════════════════════ -->
+      <section
+        id="view-game"
+        class="view"
+        role="region"
+        aria-label="Active game"
+      >
+        <h2 id="game-heading">Game</h2>
+
+        <div class="status-bar" aria-live="polite" id="game-status-bar">
+          <span id="game-info-text">Waiting…</span>
+        </div>
+
+        <!-- Move history — screen readers will announce new items -->
+        <ol
+          id="move-history"
+          aria-label="Move history"
+          aria-live="polite"
+          aria-relevant="additions"
+        ></ol>
+
+        <!-- Voice input -->
+        <div id="listen-status" aria-live="assertive" aria-atomic="true"></div>
+
+        <button
+          id="btn-speak"
+          class="btn-lg"
+          aria-label="Speak your move. Tap to activate microphone."
+          disabled
+        >
+          🎤 Speak your move
+        </button>
+
+        <button id="btn-pass" disabled>
+          Pass
+        </button>
+
+        <button id="btn-resign" class="btn-danger" disabled>
+          Resign
+        </button>
+      </section>
+
+      <!-- ══════════════════════════════════════════════════
+           VIEW: Result
+      ═══════════════════════════════════════════════════ -->
+      <section
+        id="view-result"
+        class="view"
+        role="region"
+        aria-label="Game result"
+      >
+        <h2>Game Over</h2>
+
+        <div
+          id="result-summary"
+          aria-live="polite"
+          aria-atomic="true"
+          role="status"
+        >
+          —
+        </div>
+
+        <button id="btn-new-game">
+          New Game
+        </button>
+      </section>
+
+    </main>
+
+    <!-- Scripts (module, so deferred by default) -->
+    <script type="module" src="./js/coords.js"></script>
+    <script type="module" src="./js/voice.js"></script>
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>

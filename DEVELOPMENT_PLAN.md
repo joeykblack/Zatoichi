@@ -161,7 +161,7 @@
 
 | Phase | Feature | Status |
 |---|---|---|
-| 1 | PWA scaffold + voice stubs + coord utils | ⬜ not started |
+| 1 | PWA scaffold + voice stubs + coord utils | ✅ complete |
 | 2 | OGS OAuth login | ⬜ not started |
 | 3 | Create bot game | ⬜ not started |
 | 4 | Receive & announce live moves | ⬜ not started |
