@@ -236,6 +236,18 @@
         border-radius: 0 0 0.5rem 0;
       }
       .skip-link:focus { top: 0; }
+
+      #version-stamp {
+        position: fixed;
+        bottom: 0.4rem;
+        right: 0.5rem;
+        font-size: 0.65rem;
+        color: rgba(255,255,255,0.35);
+        pointer-events: none;
+        z-index: 9999;
+        font-family: monospace;
+        user-select: none;
+      }
     </style>
   </head>
   <body>
@@ -404,6 +416,9 @@
 
     </main>
 
+    <!-- socket.io client (required for OGS live game events) -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
     <!-- Scripts (module, so deferred by default) -->
     <script type="module" src="./js/coords.js"></script>
     <script type="module" src="./js/voice.js"></script>
@@ -417,5 +432,6 @@
         if (el) el.textContent = REDIRECT_URI;
       });
     </script>
+    <div id="version-stamp" aria-hidden="true">v2026-08-04.13 &middot; 22:35</div>
   </body>
 </html>

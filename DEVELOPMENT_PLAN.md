@@ -67,7 +67,7 @@
 
 ---
 
-## Phase 4 — Live Game: Receive Moves
+## Phase 4 — Live Game: Receive Moves ✅ COMPLETE
 
 **Goal:** Connect to the OGS socket and announce opponent moves via TTS.
 
@@ -163,7 +163,7 @@
 |---|---|---|
 | 1 | PWA scaffold + voice stubs + coord utils | ✅ complete |
 | 2 | OGS OAuth login | ✅ complete |
-| 3 | Create bot game | ⬜ not started |
+| 3 | Create bot game | ✅ complete |
 | 4 | Receive & announce live moves | ⬜ not started |
 | 5 | Submit moves by voice | ⬜ not started |
 | 6 | Game over & result | ⬜ not started |
