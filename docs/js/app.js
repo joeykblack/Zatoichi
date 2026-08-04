@@ -211,7 +211,7 @@ let _pendingMove = null; // { ogsCoord, spoken, gtp, timer }
 /**
  * Submit a player move and wait for server confirmation.
  * Speaks confirmation when the server echoes the move back via handleIncomingMove.
- * Announces "invalid move" if the server doesn't respond within 3 seconds.
+ * Announces "invalid move" if the server sends a game/error event.
  */
 function submitPlayerMove(ogsCoord, gtp) {
   const token     = getToken();
@@ -219,7 +219,6 @@ function submitPlayerMove(ogsCoord, gtp) {
   const boardSize = state.game?.boardSize ?? 9;
   const spoken    = coordToSpoken(ogsCoord, boardSize);
 
-  // Clear any previous pending move
   if (_pendingMove) {
     clearTimeout(_pendingMove.timer);
     _pendingMove = null;
@@ -233,15 +232,35 @@ function submitPlayerMove(ogsCoord, gtp) {
     return;
   }
 
-  // Set a 3-second timeout — if the server doesn't echo our move back, it was rejected
+  // Fallback timeout in case the server never responds at all
   const timer = setTimeout(() => {
     if (_pendingMove?.ogsCoord === ogsCoord) {
       _pendingMove = null;
-      speak(`Invalid move. ${spoken} is not allowed. Please try again.`);
+      speak(`Move timed out. Please try again.`);
     }
-  }, 3000);
+  }, 5000);
 
   _pendingMove = { ogsCoord, spoken, gtp: gtp ?? spoken, timer };
+}
+
+/** Called by the game/error socket event — server rejected the move. */
+function handleMoveError(errMsg) {
+  if (!_pendingMove) return;
+  clearTimeout(_pendingMove.timer);
+  const { spoken } = _pendingMove;
+  _pendingMove = null;
+
+  // Parse a readable reason from the error string if possible
+  let reason = '';
+  if (/stone_already_placed/i.test(errMsg))  reason = 'There is already a stone there.';
+  else if (/ko/i.test(errMsg))               reason = 'That move is not allowed due to ko.';
+  else if (/suicide/i.test(errMsg))          reason = 'That move would be suicide.';
+  else if (/not_your_turn/i.test(errMsg))    reason = 'It is not your turn.';
+
+  const announcement = reason
+    ? `Invalid move at ${spoken}. ${reason} Please try again.`
+    : `Invalid move at ${spoken}. Please try again.`;
+  speak(announcement);
 }
 
 function handlePass() {
@@ -529,9 +548,10 @@ async function startGameSession(gameId) {
   }
 
   connectToGame(token, gameId, userId, username, chatAuth, {
-    onGameData: handleGameData,
-    onMove:     handleIncomingMove,
-    onGameOver: handleGameOver,
+    onGameData:  handleGameData,
+    onMove:      handleIncomingMove,
+    onMoveError: handleMoveError,
+    onGameOver:  handleGameOver,
   });
   console.log('Socket session started for game', gameId);
 }

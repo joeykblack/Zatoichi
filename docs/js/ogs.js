@@ -245,9 +245,10 @@ let _socket = null;
  * @param {string}  username
  * @param {string}  chatAuth   — from GET /api/v1/ui/config .chat_auth
  * @param {{
- *   onMove:     (moveData: object) => void,
- *   onGameData: (gameData: object) => void,
- *   onGameOver: (result: object) => void,
+ *   onMove:      (moveData: object) => void,
+ *   onMoveError: (err: string) => void,
+ *   onGameData:  (gameData: object) => void,
+ *   onGameOver:  (result: object) => void,
  * }} callbacks
  */
 export function connectToGame(token, gameId, userId, username, chatAuth, callbacks) {
@@ -263,15 +264,32 @@ export function connectToGame(token, gameId, userId, username, chatAuth, callbac
     path: '/socket.io',
   });
 
+  // ── Intercept all outgoing emits ──────────────────────────────────────────
+  const _origEmit = _socket.emit.bind(_socket);
+  _socket.emit = function(event, ...args) {
+    // Don't log net/ping spam
+    if (event !== 'net/ping') {
+      console.log('%c▲ SEND', 'color:#4af', event, ...args.filter(a => typeof a !== 'function'));
+    }
+    return _origEmit(event, ...args);
+  };
+
+  // ── Log every incoming event ───────────────────────────────────────────────
+  _socket.onAny((event, ...args) => {
+    if (event !== 'net/pong') {
+      console.log('%c▼ RECV', 'color:#fa4', event, ...args);
+    }
+  });
+
   _socket.on('connect', () => {
     console.log('OGS socket connected, authenticating as', username);
-    _socket.emit('authenticate', {
+    _origEmit('authenticate', {
       player_id: Number(userId),
       username:  username,
       auth:      chatAuth,
     }, (authData) => {
       console.log('OGS socket authenticated', authData);
-      _socket.emit('game/connect', {
+      _origEmit('game/connect', {
         game_id:   Number(gameId),
         player_id: Number(userId),
         chat:      false,
@@ -280,6 +298,11 @@ export function connectToGame(token, gameId, userId, username, chatAuth, callbac
   });
 
   _socket.on(`game/${gameId}/move`, data => callbacks.onMove?.(data));
+
+  _socket.on(`game/${gameId}/error`, err => {
+    console.warn(`game/${gameId}/error`, err);
+    callbacks.onMoveError?.(err);
+  });
 
   _socket.on(`game/${gameId}/gamedata`, data => {
     callbacks.onGameData?.(data);
