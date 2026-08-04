@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zatoichi-v17';
+const CACHE_NAME = 'zatoichi-v18';
 const APP_SHELL = [
   './',
   './index.html',
@@ -10,6 +10,7 @@ const APP_SHELL = [
   './js/ogs.js',
   './js/voice.js',
   './js/coords.js',
+  './js/clock.js',
   './js/board.js',
   './icons/icon-192.svg',
   './icons/icon-512.svg'

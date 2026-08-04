@@ -10,6 +10,7 @@ import { login, logout, handleCallback, validateToken, getUser, getToken } from 
 import { OGS_CLIENT_ID } from './config.js';
 import { fetchBots, createBotChallenge, fetchGame, fetchUiConfig, connectToGame, disconnectFromGame,
          submitMove, pass as ogsPass, resign as ogsResign } from './ogs.js';
+import { updateClock, stopClock } from './clock.js';
 
 // ── App State ────────────────────────────────────────────────────────────────
 
@@ -261,6 +262,31 @@ function handleMoveError(errMsg) {
     ? `Invalid move at ${spoken}. ${reason} Please try again.`
     : `Invalid move at ${spoken}. Please try again.`;
   speak(announcement);
+}
+
+/** Called on every game/clock socket event. */
+function handleClock(clockData) {
+  if (!state.game || !state.auth) return;
+
+  const myId    = state.auth.userId;
+  const myColor = state.game.playerColor;
+
+  // Determine whose turn it is from current_player in the clock payload
+  const currentPlayer = clockData.current_player;
+  const isMyTurn = Number(currentPlayer) === Number(myId);
+
+  if (!isMyTurn) {
+    stopClock();
+    return;
+  }
+
+  // Store period_time_original so the ticker can reset it each period
+  const myTime = myColor === 'black' ? clockData.black_time : clockData.white_time;
+  if (myTime && myTime.period_time !== undefined) {
+    myTime.period_time_original = myTime.period_time;
+  }
+
+  updateClock(clockData, myId, myColor, isMyTurn);
 }
 
 function handlePass() {
@@ -552,6 +578,7 @@ async function startGameSession(gameId) {
     onMove:      handleIncomingMove,
     onMoveError: handleMoveError,
     onGameOver:  handleGameOver,
+    onClock:     handleClock,
   });
   console.log('Socket session started for game', gameId);
 }
@@ -705,6 +732,7 @@ function handleIncomingMove(data) {
  */
 function handleGameOver(data) {
   disconnectFromGame();
+  stopClock();
   localStorage.removeItem('zatoichi_game_id');
   if (!state.game) return;
 

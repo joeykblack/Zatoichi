@@ -249,6 +249,7 @@ let _socket = null;
  *   onMoveError: (err: string) => void,
  *   onGameData:  (gameData: object) => void,
  *   onGameOver:  (result: object) => void,
+ *   onClock:     (clockData: object) => void,
  * }} callbacks
  */
 export function connectToGame(token, gameId, userId, username, chatAuth, callbacks) {
@@ -303,6 +304,8 @@ export function connectToGame(token, gameId, userId, username, chatAuth, callbac
     console.warn(`game/${gameId}/error`, err);
     callbacks.onMoveError?.(err);
   });
+
+  _socket.on(`game/${gameId}/clock`, data => callbacks.onClock?.(data));
 
   _socket.on(`game/${gameId}/gamedata`, data => {
     callbacks.onGameData?.(data);
