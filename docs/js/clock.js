@@ -53,9 +53,9 @@ export function updateClock(clockData, myId, myColor, isMyTurn) {
     const periods = _myTime.periods ?? 1;
     const pt      = _myTime.period_time ?? 30;
     if (periods > 1) {
-      speak(`Byoyomi. ${periods} periods of ${pt} seconds.`);
+      // speak(`Byoyomi. ${periods} periods of ${pt} seconds.`);
     } else {
-      speak(`Byoyomi. ${pt} seconds.`);
+      // speak(`Byoyomi. ${pt} seconds.`);
     }
   }
 
@@ -101,9 +101,9 @@ function _startTicker() {
           _myTime.period_time = (_myTime.period_time_original ?? 30) + _myTime.period_time;
           _countdownSaid     = new Set();
           if (remaining === 1) {
-            speak('Last period.');
+            // speak('Last period.');
           } else {
-            speak(`${remaining} periods remaining.`);
+            // speak(`${remaining} periods remaining.`);
           }
         }
         // If remaining === 0 the game will end via socket; no need to announce
@@ -123,9 +123,9 @@ function _startTicker() {
         const periods = _myTime.periods ?? 1;
         const pt      = _myTime.period_time ?? 30;
         if (periods > 1) {
-          speak(`Byoyomi. ${periods} periods of ${pt} seconds.`);
+          // speak(`Byoyomi. ${periods} periods of ${pt} seconds.`);
         } else {
-          speak(`Byoyomi. ${pt} seconds.`);
+          // speak(`Byoyomi. ${pt} seconds.`);
         }
         return;
       }
@@ -142,7 +142,7 @@ function _announceMinutes(secondsLeft) {
     // Announce when we cross below the threshold for the first time
     if (secondsLeft <= threshold && !_announcedMinutes.has(mins)) {
       _announcedMinutes.add(mins);
-      speak(`${mins} minute${mins === 1 ? '' : 's'} remaining.`);
+      // speak(`${mins} minute${mins === 1 ? '' : 's'} remaining.`);
       return;
     }
   }
@@ -153,6 +153,6 @@ function _announceCountdown(secondsLeft) {
   const s = Math.ceil(secondsLeft);
   if (s <= 10 && s >= 1 && !_countdownSaid.has(s)) {
     _countdownSaid.add(s);
-    speak(String(s), { interrupt: false });
+    // speak(String(s), { interrupt: false });
   }
 }
