@@ -75,8 +75,10 @@ export async function login() {
   const challenge = await sha256Base64url(verifier);
   const state     = randomBase64url(16);
 
-  sessionStorage.setItem('pkce_verifier', verifier);
+  sessionStorage.setItem('pkce_verifier', verifier);  // kept for same-origin fallback
   sessionStorage.setItem('pkce_state',    state);
+  localStorage.setItem('pkce_verifier', verifier);
+  localStorage.setItem('pkce_state',    state);
 
   const params = new URLSearchParams({
     response_type:         'code',
@@ -108,10 +110,12 @@ export async function handleCallback() {
   // Clean the URL immediately so a reload doesn't re-attempt the exchange
   window.history.replaceState({}, document.title, window.location.pathname);
 
-  const verifier   = sessionStorage.getItem('pkce_verifier');
-  const savedState = sessionStorage.getItem('pkce_state');
-  sessionStorage.removeItem('pkce_verifier');
-  sessionStorage.removeItem('pkce_state');
+  // Read from localStorage first (survives cross-origin redirect on GitHub Pages),
+  // fall back to sessionStorage for same-origin flows.
+  const verifier   = localStorage.getItem('pkce_verifier') ?? sessionStorage.getItem('pkce_verifier');
+  const savedState = localStorage.getItem('pkce_state')    ?? sessionStorage.getItem('pkce_state');
+  localStorage.removeItem('pkce_verifier');   sessionStorage.removeItem('pkce_verifier');
+  localStorage.removeItem('pkce_state');      sessionStorage.removeItem('pkce_state');
 
   if (retState !== savedState) {
     console.error('auth.js: OAuth state mismatch — possible CSRF');

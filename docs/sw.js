@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zatoichi-v19';
+const CACHE_NAME = 'zatoichi-v20';
 const APP_SHELL = [
   './',
   './index.html',
