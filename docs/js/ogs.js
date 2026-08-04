@@ -199,8 +199,9 @@ export async function createBotChallenge(token, botId, userId, options = {}) {
  * @param {number} gameId
  * @param {string} ogsCoord  internal two-letter coord (row 0 = bottom), e.g. 'dd', or '.' for pass
  * @param {number} boardSize  needed to flip row to OGS wire format (row 0 = top)
+ * @param {(error: string) => void} [onError]  called if OGS rejects the move
  */
-export function submitMove(token, gameId, ogsCoord, boardSize) {
+export function submitMove(token, gameId, ogsCoord, boardSize, onError) {
   if (!_socket) throw new Error('Not connected to a game socket.');
   let wireMove = ogsCoord;
   if (ogsCoord && ogsCoord !== '.' && ogsCoord !== '..' && boardSize) {
@@ -213,6 +214,11 @@ export function submitMove(token, gameId, ogsCoord, boardSize) {
   console.log('emitting game/move:', JSON.stringify(payload));
   _socket.emit('game/move', payload, (ack) => {
     console.log('game/move ack:', JSON.stringify(ack));
+    if (ack && (ack.error || ack.rejection)) {
+      const msg = ack.error ?? ack.rejection ?? 'Invalid move.';
+      console.warn('game/move rejected:', msg);
+      onError?.(msg);
+    }
   });
 }
 

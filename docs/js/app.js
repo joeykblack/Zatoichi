@@ -205,15 +205,25 @@ function handleSpeakButton() {
 
 // ── Game actions (stubs — wired up in Phase 5) ───────────────────────────────
 
+// Tracks a pending move submission so handleIncomingMove can confirm/cancel it.
+let _pendingMove = null; // { ogsCoord, spoken, gtp, timer }
+
 /**
- * Submit a player move. In Phase 1 this just logs and announces.
- * Phase 5 will call ogs.submitMove().
+ * Submit a player move and wait for server confirmation.
+ * Speaks confirmation when the server echoes the move back via handleIncomingMove.
+ * Announces "invalid move" if the server doesn't respond within 3 seconds.
  */
 function submitPlayerMove(ogsCoord, gtp) {
   const token     = getToken();
   const gameId    = state.game?.id;
   const boardSize = state.game?.boardSize ?? 9;
   const spoken    = coordToSpoken(ogsCoord, boardSize);
+
+  // Clear any previous pending move
+  if (_pendingMove) {
+    clearTimeout(_pendingMove.timer);
+    _pendingMove = null;
+  }
 
   try {
     submitMove(token, gameId, ogsCoord, boardSize);
@@ -222,8 +232,16 @@ function submitPlayerMove(ogsCoord, gtp) {
     speak('Sorry, failed to submit that move. Please try again.');
     return;
   }
-  speak(`You played ${spoken}.`);
-  addMoveHistoryEntry(`You: ${gtp ?? spoken}`, 'you');
+
+  // Set a 3-second timeout — if the server doesn't echo our move back, it was rejected
+  const timer = setTimeout(() => {
+    if (_pendingMove?.ogsCoord === ogsCoord) {
+      _pendingMove = null;
+      speak(`Invalid move. ${spoken} is not allowed. Please try again.`);
+    }
+  }, 3000);
+
+  _pendingMove = { ogsCoord, spoken, gtp: gtp ?? spoken, timer };
 }
 
 function handlePass() {
@@ -643,8 +661,17 @@ function handleIncomingMove(data) {
   const spoken = coordToSpoken(ogsCoord, state.game.boardSize);
 
   if (isMyMove) {
-    // Our move confirmed by server
-    addMoveHistoryEntry(`You: ${spoken}`, 'you');
+    // Server confirmed our move — cancel the rejection timer and announce
+    if (_pendingMove) {
+      clearTimeout(_pendingMove.timer);
+      const label = _pendingMove.gtp ?? spoken;
+      _pendingMove = null;
+      speak(`You played ${spoken}.`);
+      addMoveHistoryEntry(`You: ${label}`, 'you');
+    } else {
+      // Confirmed move with no pending record (e.g. reconnect replay)
+      addMoveHistoryEntry(`You: ${spoken}`, 'you');
+    }
   } else {
     // Opponent move — announce it
     const announcement = ogsCoord === '.' ? 'Opponent passes.' : `Opponent plays ${spoken}.`;
